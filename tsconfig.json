@@ -13,4 +13,6 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
+  "include": ["src", "types"],
+  "exclude": ["cli"],
 }
