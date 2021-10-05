@@ -6,7 +6,6 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { struct, u8 } from "buffer-layout";
-import { LENDING_PROGRAM_ID } from "../constants";
 import { ReserveConfig, ReserveConfigLayout } from "../state";
 import { u64 } from "../util";
 import { LendingInstruction } from "./instruction";
@@ -40,7 +39,8 @@ export const initReserveInstruction = (
   lendingMarketAuthority: PublicKey,
   lendingMarketOwner: PublicKey,
   transferAuthority: PublicKey,
-  switchboardFeed,
+  switchboardFeed: PublicKey,
+  lendingProgram: PublicKey
 ): TransactionInstruction => {
   const data = Buffer.alloc(DataLayout.span);
   DataLayout.encode(
@@ -73,7 +73,7 @@ export const initReserveInstruction = (
     { pubkey: pythProduct, isSigner: false, isWritable: false },
     //     let pyth_price_info = next_account_info(account_info_iter)?;
     { pubkey: pythPrice, isSigner: false, isWritable: false },
-    //     todo let switchboard_feed_info = next_account_info(account_info_iter)?;
+    //     let switchboard_feed_info = next_account_info(account_info_iter)?;
     { pubkey: switchboardFeed, isSigner: false, isWritable: false },
     //     let lending_market_info = next_account_info(account_info_iter)?;
     { pubkey: lendingMarket, isSigner: false, isWritable: true },
@@ -94,7 +94,7 @@ export const initReserveInstruction = (
 
   return new TransactionInstruction({
     keys,
-    programId: LENDING_PROGRAM_ID,
+    programId: lendingProgram,
     data,
   });
 };

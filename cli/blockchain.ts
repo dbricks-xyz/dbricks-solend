@@ -10,14 +10,15 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import {
+  borrowFlashLoanInstruction,
   borrowObligationLiquidityInstruction,
   depositObligationCollateralInstruction,
+  depositReserveLiquidityAndObligationCollateralInstruction,
   depositReserveLiquidityInstruction,
   initLendingMarketInstruction,
   initObligationInstruction,
   initReserveInstruction,
   LENDING_MARKET_SIZE,
-  LENDING_PROGRAM_ID,
   liquidateObligationInstruction,
   OBLIGATION_SIZE,
   parseObligation,
@@ -30,15 +31,21 @@ import {
   ReserveConfig,
   ReserveFees,
   WAD_BigInt,
+  withdrawObligationCollateralAndRedeemReserveCollateralInstruction,
   withdrawObligationCollateralInstruction,
 } from '../src';
 import {AccountLayout, MintLayout, Token, TOKEN_PROGRAM_ID,} from '@solana/spl-token';
-import {borrowFlashLoanInstruction} from '../src/instructions/borrowFlashLoan';
 import {newAccountWithLamports} from './util';
-import {depositReserveLiquidityAndObligationCollateralInstruction} from "../src/instructions/depositReserveLiquidityAndObligationCollateral";
-import {withdrawObligationCollateralAndRedeemReserveCollateralInstruction} from "../src/instructions/withdrawObligationCollateralAndRedeemReserveCollateral";
 
 // ============================================================================= bc class
+
+// all 3 below are DEVNET
+// export const LENDING_PROGRAM_ID = new PublicKey('ALend7Ketfx5bxh6ghsCDXAoDrhvEmsXT3cynB6aPLgx');
+export const LENDING_PROGRAM_ID = new PublicKey('jj1rmvY2oKSE3GvukuzepoCeMo1X5M4iiKZmqNHGb41');
+export const PYTH_ORACLE_PROGRAM_ID = new PublicKey('gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s');
+export const SWITCHBOARD_PROGRAM_ID = new PublicKey('7azgmy1pFXHikv36q1zZASvFq5vFa39TT9NweVugKKTU');
+export const FLASH_LOAN_PROGRAM_ID = new PublicKey("Eiy9gzpAcjQiav3q4QQNLFxRqCVFXiPboVwLSDS19UFc");
+export const SWITCHBOARD_FEED = new PublicKey('74YzQPGUT9VnjrBz8MuyDLKgKpbDqGot5xZJvTtMi6Ng');
 
 interface IToken {
   currency: string,
@@ -61,9 +68,6 @@ interface IToken {
 
 export class Blockchain {
   connection: Connection;
-
-  FLASH_LOAN_PROGRAM_ID = new PublicKey("Eiy9gzpAcjQiav3q4QQNLFxRqCVFXiPboVwLSDS19UFc");
-  SWITCHBOARD_FEED = new PublicKey('74YzQPGUT9VnjrBz8MuyDLKgKpbDqGot5xZJvTtMi6Ng');
 
   ownerKp: Keypair = null;
   lendingMarketKp: Keypair = new Keypair();
@@ -152,6 +156,9 @@ export class Blockchain {
       this.ownerKp.publicKey,
       quoteCurrency,
       this.lendingMarketKp.publicKey,
+      PYTH_ORACLE_PROGRAM_ID,
+      SWITCHBOARD_PROGRAM_ID,
+      LENDING_PROGRAM_ID,
     );
 
     await this._prepareAndSendTx(
@@ -226,7 +233,8 @@ export class Blockchain {
       this.lendingMarketAuthority,
       this.ownerKp.publicKey,
       this.ownerKp.publicKey,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
 
     await this._prepareAndSendTx(
@@ -242,7 +250,8 @@ export class Blockchain {
     const refreshReserveIx = refreshReserveInstruction(
       token.reserveKp.publicKey,
       token.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const depositReserveLiqIx = depositReserveLiquidityInstruction(
       depositLiquidityAmount,
@@ -254,6 +263,7 @@ export class Blockchain {
       this.lendingMarketKp.publicKey,
       this.lendingMarketAuthority,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveIx, depositReserveLiqIx],
@@ -268,7 +278,8 @@ export class Blockchain {
     const refreshReserveIx = refreshReserveInstruction(
       token.reserveKp.publicKey,
       token.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const redeemReserveColIx = redeemReserveCollateralInstruction(
       redeemCollateralAmount,
@@ -280,6 +291,7 @@ export class Blockchain {
       this.lendingMarketKp.publicKey,
       this.lendingMarketAuthority,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveIx, redeemReserveColIx],
@@ -300,6 +312,7 @@ export class Blockchain {
       this.obligationKp.publicKey,
       this.lendingMarketKp.publicKey,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [createObligAccIx, initObligIx],
@@ -315,12 +328,14 @@ export class Blockchain {
     const refreshReserveIx = refreshReserveInstruction(
       token.reserveKp.publicKey,
       token.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshObligIx = refreshObligationInstruction(
       this.obligationKp.publicKey,
       this.obligationDeposits,
       this.obligationBorrows,
+      LENDING_PROGRAM_ID,
     );
     const depositObligColIx = depositObligationCollateralInstruction(
       depositCollateralAmount,
@@ -331,6 +346,7 @@ export class Blockchain {
       this.lendingMarketKp.publicKey,
       this.ownerKp.publicKey,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveIx, refreshObligIx, depositObligColIx],
@@ -344,17 +360,20 @@ export class Blockchain {
     const refreshReserveAIx = refreshReserveInstruction(
       this.tokenA.reserveKp.publicKey,
       this.tokenA.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshReserveBIx = refreshReserveInstruction(
       this.tokenB.reserveKp.publicKey,
       this.tokenB.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshObligIx = refreshObligationInstruction(
       this.obligationKp.publicKey,
       this.obligationDeposits,
       this.obligationBorrows,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveAIx, refreshReserveBIx, refreshObligIx],
@@ -370,12 +389,14 @@ export class Blockchain {
     const refreshReserveIx = refreshReserveInstruction(
       token.reserveKp.publicKey,
       token.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshObligIx = refreshObligationInstruction(
       this.obligationKp.publicKey,
       this.obligationDeposits,
       this.obligationBorrows,
+      LENDING_PROGRAM_ID,
     );
     const withdrawObligColIx = withdrawObligationCollateralInstruction(
       withdrawCollateralAmount,
@@ -386,6 +407,7 @@ export class Blockchain {
       this.lendingMarketKp.publicKey,
       this.lendingMarketAuthority,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveIx, refreshObligIx, withdrawObligColIx],
@@ -401,17 +423,20 @@ export class Blockchain {
     const refreshReserveLiqIx = refreshReserveInstruction(
       liquidityToken.reserveKp.publicKey,
       liquidityToken.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshReserveColIx = refreshReserveInstruction(
       collateralToken.reserveKp.publicKey,
       collateralToken.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshObligIx = refreshObligationInstruction(
       this.obligationKp.publicKey,
       this.obligationDeposits,
       this.obligationBorrows,
+      LENDING_PROGRAM_ID,
     );
     const borrowObligLiqIx = borrowObligationLiquidityInstruction(
       borrowLiquidityAmount,
@@ -423,6 +448,7 @@ export class Blockchain {
       this.lendingMarketKp.publicKey,
       this.lendingMarketAuthority,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
       liquidityToken.hostPk,
     );
     await this._prepareAndSendTx(
@@ -439,17 +465,20 @@ export class Blockchain {
     const refreshReserveLiqIx = refreshReserveInstruction(
       liquidityToken.reserveKp.publicKey,
       liquidityToken.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshReserveColIx = refreshReserveInstruction(
       collateralToken.reserveKp.publicKey,
       collateralToken.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshObligIx = refreshObligationInstruction(
       this.obligationKp.publicKey,
       this.obligationDeposits,
       this.obligationBorrows,
+      LENDING_PROGRAM_ID,
     );
     const repayObligLiqIx = repayObligationLiquidityInstruction(
       repayLiquidityAmount,
@@ -459,6 +488,7 @@ export class Blockchain {
       this.obligationKp.publicKey,
       this.lendingMarketKp.publicKey,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveLiqIx, refreshReserveColIx, refreshObligIx, repayObligLiqIx],
@@ -473,7 +503,8 @@ export class Blockchain {
     const refreshReserveIx = refreshReserveInstruction(
       token.reserveKp.publicKey,
       token.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const depositLiqIx = depositReserveLiquidityAndObligationCollateralInstruction(
       depositLiquidityAmount,
@@ -488,8 +519,9 @@ export class Blockchain {
       this.obligationKp.publicKey,
       this.ownerKp.publicKey,
       token.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveIx, depositLiqIx],
@@ -505,12 +537,14 @@ export class Blockchain {
     const refreshReserveIx = refreshReserveInstruction(
       token.reserveKp.publicKey,
       token.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshObligIx = refreshObligationInstruction(
       this.obligationKp.publicKey,
       this.obligationDeposits,
       this.obligationBorrows,
+      LENDING_PROGRAM_ID,
     );
     const withdrawObligColIx = withdrawObligationCollateralAndRedeemReserveCollateralInstruction(
       withdrawCollateralAmount,
@@ -525,6 +559,7 @@ export class Blockchain {
       token.protocolKp.publicKey,
       this.ownerKp.publicKey,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveIx, refreshObligIx, withdrawObligColIx],
@@ -540,17 +575,20 @@ export class Blockchain {
     const refreshReserveLiqIx = refreshReserveInstruction(
       liquidityToken.reserveKp.publicKey,
       liquidityToken.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshReserveColIx = refreshReserveInstruction(
       collateralToken.reserveKp.publicKey,
       collateralToken.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const refreshObligIx = refreshObligationInstruction(
       this.obligationKp.publicKey,
       this.obligationDeposits,
       this.obligationBorrows,
+      LENDING_PROGRAM_ID,
     );
     const liquidateIx = liquidateObligationInstruction(
       liquidityAmount,
@@ -564,6 +602,7 @@ export class Blockchain {
       this.lendingMarketKp.publicKey,
       this.lendingMarketAuthority,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     );
     await this._prepareAndSendTx(
       [refreshReserveLiqIx, refreshReserveColIx, refreshObligIx, liquidateIx],
@@ -578,7 +617,8 @@ export class Blockchain {
     const refreshReserveIx = refreshReserveInstruction(
       token.reserveKp.publicKey,
       token.pythPricePk,
-      this.SWITCHBOARD_FEED,
+      SWITCHBOARD_FEED,
+      LENDING_PROGRAM_ID,
     );
     const borrowFlashLoanIx = borrowFlashLoanInstruction(
       liquidityAmount,
@@ -589,8 +629,9 @@ export class Blockchain {
       token.hostPk,
       this.lendingMarketKp.publicKey,
       this.lendingMarketAuthority,
-      this.FLASH_LOAN_PROGRAM_ID,
+      FLASH_LOAN_PROGRAM_ID,
       this.ownerKp.publicKey,
+      LENDING_PROGRAM_ID,
     )
     await this._prepareAndSendTx(
       [refreshReserveIx, borrowFlashLoanIx],

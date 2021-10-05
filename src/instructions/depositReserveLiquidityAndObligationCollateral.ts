@@ -5,7 +5,6 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { struct, u8 } from "buffer-layout";
-import { LENDING_PROGRAM_ID } from "../constants";
 import { u64 } from "../util";
 import { LendingInstruction } from "./instruction";
 
@@ -30,12 +29,14 @@ export const depositReserveLiquidityAndObligationCollateralInstruction = (
   obligationOwner: PublicKey,
   oracle: PublicKey,
   switchboardFeed: PublicKey,
-  transferAuthority: PublicKey
+  transferAuthority: PublicKey,
+  lendingProgram: PublicKey
 ): TransactionInstruction => {
   const data = Buffer.alloc(DataLayout.span);
   DataLayout.encode(
     {
-      instruction: LendingInstruction.DepositReserveLiquidityAndObligationCollateral,
+      instruction:
+        LendingInstruction.DepositReserveLiquidityAndObligationCollateral,
       liquidityAmount: BigInt(liquidityAmount),
     },
     data
@@ -76,7 +77,7 @@ export const depositReserveLiquidityAndObligationCollateralInstruction = (
 
   return new TransactionInstruction({
     keys,
-    programId: LENDING_PROGRAM_ID,
+    programId: lendingProgram,
     data,
   });
 };

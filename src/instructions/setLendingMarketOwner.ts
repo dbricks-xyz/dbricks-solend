@@ -1,12 +1,11 @@
-import { PublicKey, TransactionInstruction } from '@solana/web3.js';
-import { struct, u8 } from 'buffer-layout';
-import { LENDING_PROGRAM_ID } from '../constants';
-import { publicKey } from '../util';
-import { LendingInstruction } from './instruction';
+import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { struct, u8 } from "buffer-layout";
+import { publicKey } from "../util";
+import { LendingInstruction } from "./instruction";
 
 interface Data {
-    instruction: number;
-    newOwner: PublicKey;
+  instruction: number;
+  newOwner: PublicKey;
 }
 
 const DataLayout = struct<Data>([u8('instruction'), publicKey('newOwner')]);
@@ -14,7 +13,8 @@ const DataLayout = struct<Data>([u8('instruction'), publicKey('newOwner')]);
 export const setLendingMarketOwnerInstruction = (
     newOwner: PublicKey,
     lendingMarket: PublicKey,
-    currentOwner: PublicKey
+    currentOwner: PublicKey,
+    lendingProgram: PublicKey,
 ): TransactionInstruction => {
     const data = Buffer.alloc(DataLayout.span);
     DataLayout.encode(
@@ -32,7 +32,7 @@ export const setLendingMarketOwnerInstruction = (
 
     return new TransactionInstruction({
         keys,
-        programId: LENDING_PROGRAM_ID,
+        programId: lendingProgram,
         data,
     });
 };
